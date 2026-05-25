@@ -2,8 +2,6 @@
 ===================================================
      🏦 ANTRIAN BANK PRIORITAS - STREAMLIT 🏦
 ===================================================
-     Tutorial CRUD dengan Priority Queue
-===================================================
 """
 
 import streamlit as st
@@ -59,23 +57,23 @@ class AntrianBank:
     def lihat_semua(self):
         return sorted(st.session_state.antrian, key=lambda x: (x[0], x[1]))
     
-    def update_data(self, nomor, nama, prioritas):
+    def update_data(self, nomor, nama_baru, prioritas_baru):
         for i, (p, cp, d) in enumerate(st.session_state.antrian):
             if d['nomor'] == nomor:
-                if nama:
-                    d['nama'] = nama
-                if prioritas is not None:
+                if nama_baru:
+                    d['nama'] = nama_baru
+                if prioritas_baru is not None:
                     st.session_state.antrian.remove((p, cp, d))
-                    d['prioritas'] = prioritas
-                    st.session_state.antrian.append((prioritas, cp, d))
+                    d['prioritas'] = prioritas_baru
+                    st.session_state.antrian.append((prioritas_baru, cp, d))
                 return True
         
         for i, t in enumerate(st.session_state.teller, 1):
             if t and t['nomor'] == nomor:
-                if nama:
-                    t['nama'] = nama
-                if prioritas is not None:
-                    t['prioritas'] = prioritas
+                if nama_baru:
+                    t['nama'] = nama_baru
+                if prioritas_baru is not None:
+                    t['prioritas'] = prioritas_baru
                 return True
         return False
     
@@ -147,7 +145,6 @@ if menu == "🏠 Home":
     
     st.markdown("---")
     
-    # Tampilkan teller
     st.subheader("👨‍💼 Status Teller")
     for i, t in enumerate(st.session_state.teller, 1):
         if t:
@@ -164,14 +161,16 @@ elif menu == "📝 Ambil Nomor":
     st.title("📝 Ambil Nomor Antrian")
     st.markdown("---")
     
-    with st.form(".form_ambil"):
+    with st.form("form_ambil"):
         nama = st.text_input("Nama Nasabah", placeholder="Masukkan nama...")
-        prioritas = st.selectbox(
+        pilihan_prioritas = st.selectbox(
             "Prioritas",
-            options=[(0, "SANGAT UTAMA - Ibu Hamil/Lansia"), 
-                     (1, "UTAMA - VIP"), 
-                     (2, "TINGGI - Pensiunan"), 
-                     (3, "NORMAL - Umum")],
+            options=[
+                (0, "SANGAT UTAMA - Ibu Hamil/Lansia"), 
+                (1, "UTAMA - VIP"), 
+                (2, "TINGGI - Pensiunan"), 
+                (3, "NORMAL - Umum")
+            ],
             format_func=lambda x: x[1]
         )
         
@@ -179,8 +178,8 @@ elif menu == "📝 Ambil Nomor":
         
         if submit:
             if nama:
-                no = bank.ambil_nomor(nama, prioritas[0])
-                st.success(f"✅ {nama} ➜ Nomor Antrian: {no} [{bank.label_prioritas(prioritas[0])}]")
+                no = bank.ambil_nomor(nama, pilihan_prioritas[0])
+                st.success(f"✅ {nama} ➜ Nomor Antrian: {no} [{bank.label_prioritas(pilihan_prioritas[0])}]")
             else:
                 st.error("❌ Nama tidak boleh kosong!")
 
@@ -192,7 +191,6 @@ elif menu == "📋 Lihat Antrian":
     antrian_urut = bank.lihat_semua()
     
     if antrian_urut:
-        # Buat dataframe
         data_list = []
         for _, _, d in antrian_urut:
             data_list.append({
@@ -231,82 +229,86 @@ elif menu == "✏️ Ubah Data":
     st.title("✏️ Ubah Data Nasabah")
     st.markdown("---")
     
-    no = st.number_input("Nomor Antrian", min_value=1, step=1, key="update_no")
-    nama_baru = st.text_input("Nama Baru (kosongkan jika tidak diubah)", key="update_nama")
-    prioridades = st.selectbox(
+    update_no = st.number_input("Nomor Antrian", min_value=1, step=1, key="update_no")
+    update_nama = st.text_input("Nama Baru (kosongkan jika tidak diubah)", key="update_nama")
+    update_prioritas = st.selectbox(
         "Prioritas Baru",
-        options=[None, (0, "SANGAT UTAMA"), (1, "UTAMA"), 
-                 (2, "TINGGI"), (3, "NORMAL")],
-        format_func=lambda x: x[1] if x else "Tidak Diubah",
-        key="update_prioritas"
+        options=[
+            (None, "Tidak Diubah"),
+            (0, "SANGAT UTAMA"),
+            (1, "UTAMA"),
+            (2, "TINGGI"),
+            (3, "NORMAL")
+        ],
+        format_func=lambda x: x[1] if x[0] is not None else "Tidak Diubah",
+        key="update_prioritas_select"
     )
     
     if st.button("✏️ Ubah Data"):
-        p = prioridades[0] if prioritas else None
-        nama = nama_baru if nama_baru else None
+        p = update_prioritas[0]
+        nama = update_nama if update_nama else None
         
-        if bank.update_data(no, nama, p):
-            st.success(f"✅ Berhasil ubah data No.{no}")
+        if bank.update_data(update_no, nama, p):
+            st.success(f"✅ Berhasil ubah data No.{update_no}")
         else:
-            st.error(f"❌ Gagal ubah: No.{no} tidak ditemukan!")
+            st.error(f"❌ Gagal ubah: No.{update_no} tidak ditemukan!")
 
 # ==================== DELETE ====================
 elif menu == "❌ Batal":
     st.title("❌ Batal Antrian")
     st.markdown("---")
     
-    no = st.number_input("Nomor Antrian", min_value=1, step=1, key="batal_no")
+    Batal_no = st.number_input("Nomor Antrian", min_value=1, step=1, key="batal_no")
     
     if st.button("❌ Batal Antrian"):
-        if bank.Batal_antrian(no):
-            st.success(f"✅ Antrian No.{no} dibatalkan!")
+        if bank.Batal_antrian(Batal_no):
+            st.success(f"✅ Antrian No.{Batal_no} dibatalkan!")
         else:
-            st.error(f"❌ Gagal: No.{no} tidak ditemukan!")
+            st.error(f"❌ Gagal: No.{Batal_no} tidak ditemukan!")
 
 # ==================== PANGGIL ====================
 elif menu == "📞 Panggil":
     st.title("📞 Panggil Nasabah")
     st.markdown("---")
     
-    teller_opsi = st.selectbox(
+    pilih_teller = st.selectbox(
         "Pilih Teller",
         options=[1, 2, 3],
         format_func=lambda x: f"Teller {x}"
     )
     
     if st.button("📞 Panggil Nasabah"):
-        data = bank.panggil(teller_opsi)
+        data = bank.panggil(pilih_teller)
         
         if data:
-            st.success(f"Teller {teller_opsi}: Memanggil {data['nama']} (No.{data['nomor']}) [{bank.label_prioritas(data['prioritas'])}]")
+            st.success(f"Teller {pilih_teller}: Memanggil {data['nama']} (No.{data['nomor']}) [{bank.label_prioritas(data['prioritas'])}]")
         else:
-            st.warning(f"Teller {teller_opsi}: Antrian kosong!")
+            st.warning(f"Teller {pilih_teller}: Antrian kosong!")
 
 # ==================== SELESAI ====================
 elif menu == "✅ Selesai":
     st.title("✅ Selesai Layanan")
     st.markdown("---")
     
-    teller_opsi = st.selectbox(
+    selesaikan_teller = st.selectbox(
         "Pilih Teller",
         options=[1, 2, 3],
         format_func=lambda x: f"Teller {x}"
     )
     
     if st.button("✅ Selesai"):
-        data = bank.selesai(teller_opsi)
+        data = bank.selesai(selesaikan_teller)
         
         if data:
-            st.success(f"Teller {teller_opsi}: ✅ Selesai melayani {data['nama']}")
+            st.success(f"Teller {selesaikan_teller}: ✅ Selesai melayani {data['nama']}")
         else:
-            st.warning(f"Teller {teller_opsi}: Tidak ada yang dilayani!")
+            st.warning(f"Teller {selesaikan_teller}: Tidak ada yang dilayani!")
 
 # ==================== STATUS ====================
 elif menu == "📊 Status":
     st.title("📊 Status Lengkap")
     st.markdown("---")
     
-    # Metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("📋 Menunggu", len(st.session_state.antrian))
@@ -319,7 +321,6 @@ elif menu == "📊 Status":
     
     st.markdown("---")
     
-    # Antrian
     st.subheader("📋 Antrian Menunggu")
     antrian_urut = bank.lihat_semua()
     
@@ -332,7 +333,6 @@ elif menu == "📊 Status":
     
     st.markdown("---")
     
-    # Teller
     st.subheader("👨‍💼 Status Teller")
     for i, t in enumerate(st.session_state.teller, 1):
         if t:
