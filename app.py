@@ -1,121 +1,342 @@
+"""
+===================================================
+     🏦 ANTRIAN BANK PRIORITAS - STREAMLIT 🏦
+===================================================
+     Tutorial CRUD dengan Priority Queue
+===================================================
+"""
+
 import streamlit as st
+from collections import deque
 
-# =======================================================================
-# KELAS NODE KATEGORI
-# =======================================================================
+# ==================== SETUP ====================
+st.set_page_config(
+    page_title="Antrian Bank Prioritas",
+    page_icon="🏦",
+    layout="centered"
+)
 
-class KategoriNode:
-    def __init__(self, nama_kategori):
-        self.nama = nama_kategori
-        self.sub_kategori = []  # Ini adalah 'anak' atau cabung dari kategori
+# ==================== CLASS ====================
+class AntrianBank:
+    """Sistem Antrian Bank dengan Prioritas"""
+    
+    def __init__(self):
+        if 'antrian' not in st.session_state:
+            st.session_state.antrian = deque()
+        if 'nomor_antrian' not in st.session_state:
+            st.session_state.nomor_antrian = 0
+        if 'teller' not in st.session_state:
+            st.session_state.teller = [None, None, None]
+        if 'counter_prioritas' not in st.session_state:
+            st.session_state.counter_prioritas = 0
+        if 'total_dilayani' not in st.session_state:
+            st.session_state.total_dilayani = 0
+        if 'riwayat' not in st.session_state:
+            st.session_state.riwayat = []
+    
+    def ambil_nomor(self, nama, prioritas):
+        st.session_state.nomor_antrian += 1
+        st.session_state.counter_prioritas += 1
         
-    def tambah_sub(self, node_kategori):
-        self.sub_kategori.append(node_kategori)
-         
-    # Mengubah fungsi print menjadi return string agar bisa di tampilkan di web
-    def dapatkan_tree_string(self, level=0):
-        indentasi = "   " * level
-        simbol = "-> " if level > 0 else "</>"
-        hasil = f"{indentasi}{simbol}{self.nama}\n"
+        data = {
+            'nomor': st.session_state.nomor_antrian, 
+            'nama': nama, 
+            'prioritas': prioritas
+        }
+        st.session_state.antrian.append((prioritas, st.session_state.counter_prioritas, data))
+        return st.session_state.nomor_antrian
+    
+    def cek_nomor(self, nomor):
+        for p, cp, d in st.session_state.antrian:
+            if d['nomor'] == nomor:
+                return d, "Menunggu"
         
-        for sub in self.sub_kategori:
-            hasil += sub.dapatkan_tree_string(level + 1)
-        return hasil
-            
-    def cari_node(self, target_nama):
-        if self.nama.lower() == target_nama.lower():
-            return self
+        for i, t in enumerate(st.session_state.teller, 1):
+            if t and t['nomor'] == nomor:
+                return t, f"Teller {i}"
+        return None, None
+    
+    def lihat_semua(self):
+        return sorted(st.session_state.antrian, key=lambda x: (x[0], x[1]))
+    
+    def update_data(self, nomor, nama, prioritas):
+        for i, (p, cp, d) in enumerate(st.session_state.antrian):
+            if d['nomor'] == nomor:
+                if nama:
+                    d['nama'] = nama
+                if prioritas is not None:
+                    st.session_state.antrian.remove((p, cp, d))
+                    d['prioritas'] = prioritas
+                    st.session_state.antrian.append((prioritas, cp, d))
+                return True
         
-        for sub in self.sub_kategori:
-            hasil = sub.cari_node(target_nama)
-            if hasil:
-                return hasil   
+        for i, t in enumerate(st.session_state.teller, 1):
+            if t and t['nomor'] == nomor:
+                if nama:
+                    t['nama'] = nama
+                if prioritas is not None:
+                    t['prioritas'] = prioritas
+                return True
+        return False
+    
+    def Batal_antrian(self, nomor):
+        for p, cp, d in enumerate(st.session_state.antrian):
+            if d['nomor'] == nomor:
+                st.session_state.antrian.remove((p, cp, d))
+                return True
+        return False
+    
+    def panggil(self, teller_id):
+        if not st.session_state.antrian:
+            return None
+        
+        antrian_urut = deque(sorted(st.session_state.antrian, key=lambda x: (x[0], x[1])))
+        
+        _, _, data = antrian_urut.popleft()
+        st.session_state.antrian = antrian_urut
+        st.session_state.teller[teller_id - 1] = data
+        st.session_state.total_dilayani += 1
+        return data
+    
+    def selesai(self, teller_id):
+        if st.session_state.teller[teller_id - 1]:
+            data = st.session_state.teller[teller_id - 1]
+            st.session_state.teller[teller_id - 1] = None
+            st.session_state.riwayat.append(data)
+            return data
         return None
     
-    def cari_jalur(self, target, path=""):
-        jalur_saat_ini = path + " > " + self.nama if path else self.nama
-        
-        if self.nama.lower() == target.lower():
-            return jalur_saat_ini
-        
-        for sub in self.sub_kategori:
-            hasil = sub.cari_jalur(target, jalur_saat_ini)
-            if hasil: 
-                return hasil    
-        return None 
-    
-         
-# ===========================================
-#  PROGRAM UTAMA (STREAMLIT UI)
-# ===========================================
-st.set_page_config(page_title="Struktur Kategori", page_icon="+")
+    def label_prioritas(self, p):
+        labels = {0: "SANGAT UTAMA", 1: "UTAMA", 2: "TINGGI", 3: "NORMAL"}
+        return labels.get(p, f"P-{p}")
 
-st.title(" Pembuat Struktur Kategori")
-st.write("Aplikasi Interaktif untuk mensimulasikan struktur data Tree")
 
-# Inisialisasi session stata untuk menyimpan struktur Tree agar tidak hilang saat halaman direfresh
-if 'root' not in st.session_state:
-    st.session_state.root = None
+# ==================== INIT ====================
+bank = AntrianBank()
+
+# ==================== SIDEBAR ====================
+st.sidebar.title("🏦 Menu")
+menu = st.sidebar.radio(
+    "Pilih Menu:",
+    ["🏠 Home", "📝 Ambil Nomor", "📋 Lihat Antrian", 
+     "🔍 Cek Nomor", "✏️ Ubah Data", "❌ Batal", 
+     "📞 Panggil", "✅ Selesai", "📊 Status"]
+)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📌 Prioritas")
+st.sidebar.markdown("""
+- **P-0**: SANGAT UTAMA (Ibu Hamil/Lansia)
+- **P-1**: UTAMA (VIP)
+- **P-2**: TINGGI (Pensiunan)
+- **P-3**: NORMAL (Umum)
+""")
+
+# ==================== HOME ====================
+if menu == "🏠 Home":
+    st.title("🏦 Antrian Bank Prioritas")
+    st.markdown("---")
     
-# Jika root belum dibuat, tampilkan form pembuatan root
-if st.session_state.root is None:
-    st.info("Sistem belum memliki kategori untama. Silahkan buat terlebih dahulu.")
-    nama_root = st.text_input("Masukkan nama kategori utama (Root):", value="Toko Saya")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📋 Menunggu", len(st.session_state.antrian))
+    with col2:
+        st.metric("👨‍💼 Teller Aktif", sum(1 for t in st.session_state.teller if t))
+    with col3:
+        st.metric("✅ Total Dilayani", st.session_state.total_dilayani)
     
-    if st.button("Buat Kategori Utama", type="primary"):
-        st.session_state.root = KategoriNode(nama_root)
-        st.rerun() # Refresh halaman
-        
-# Jika Root sudah ada, tampilkan menu utama menggunakan tabs
-else:
-    root = st.session_state.root
+    st.markdown("---")
     
-    #Mengganti menu CLI dengan sistem tab yang lebih modern
-    tab1, tab2, tab3 = st.tabs(["Lihat Struktur", "+ Tambah Sub-Kategori", "Cari Jalur"])
-    
-    # TAB 1: Lihat Struktur
-    with tab1:
-        st.subheader("Struktur Kategori saat ini")
-        tree_teks = root.dapatkan_tree_string()
-        #Menggunakan st.code agar format indentasi (spasi) tetap rapi
-        st.code(tree_teks, language="text")
-        
-    # TAB 2: Tambah Sub-Kategori
-    with tab2:
-        st.subheader("Tambah Cabang Baru")
-        induk_nama = st.text_input("Nama Kategori induk tempat cabang di tambahkan:")
-        anak_nama = st.text_input("Nama sub-kategori baru:")
-        
-        if st.button("Tambah Kategori"):
-            if induk_nama and anak_nama:
-                induk_node = root.cari_node(induk_nama)
-                if induk_node:
-                    induk_node.tambah_sub(KategoriNode(anak_nama))
-                    st.success(f"Berhasil menambahkan '{anak_nama}' dibawah '{induk_node.nama}'!")
-                else:
-                    st.error(f"Kategori '{induk_nama}' tidak ditemukan! Pastikan ejaannya benar.")
+    # Tampilkan teller
+    st.subheader("👨‍💼 Status Teller")
+    for i, t in enumerate(st.session_state.teller, 1):
+        if t:
+            label = bank.label_prioritas(t['prioritas'])
+            st.success(f"Teller {i}: {t['nama']} (No.{t['nomor']}) [{label}]")
         else:
-            st.warning("Harap isi Kedua kolom diatas")
-            
-    # TAB 3: Cari Jalur
-    with tab3:
-        st.subheader("Pencarian BreadCrumb")
-        target_cari = st.text_input("Nama kategori yang ingin di cari jalurnya:")
-        
-        if st.button("Cari Jalur"):
-            if target_cari:
-                hasil = root.cari_jalur(target_cari)
-                if hasil:
-                    st.success("Ditemukan!")
-                    st.info(f"Jalur: {hasil}")
-                else:
-                    st.error(f"Kategori '{target_cari}' tidak ditemukan dalam sistem")
-        else:
-            st.warning("Harap isi nama Kategori yang di cari")
-            
-# Tombol Reset
-st.divider()
-if st.button("Reset Sistem / Mulai dari awal"):
-    st.session_state.root = None
-    st.rerun()
+            st.info(f"Teller {i}: 🟢 Idle")
+    
+    st.markdown("---")
+    st.caption("🏦 Aplikasi Antrian Bank Prioritas dengan Streamlit")
 
+# ==================== CREATE ====================
+elif menu == "📝 Ambil Nomor":
+    st.title("📝 Ambil Nomor Antrian")
+    st.markdown("---")
+    
+    with st.form(".form_ambil"):
+        nama = st.text_input("Nama Nasabah", placeholder="Masukkan nama...")
+        prioritas = st.selectbox(
+            "Prioritas",
+            options=[(0, "SANGAT UTAMA - Ibu Hamil/Lansia"), 
+                     (1, "UTAMA - VIP"), 
+                     (2, "TINGGI - Pensiunan"), 
+                     (3, "NORMAL - Umum")],
+            format_func=lambda x: x[1]
+        )
+        
+        submit = st.form_submit_button("✅ Ambil Nomor")
+        
+        if submit:
+            if nama:
+                no = bank.ambil_nomor(nama, prioritas[0])
+                st.success(f"✅ {nama} ➜ Nomor Antrian: {no} [{bank.label_prioritas(prioritas[0])}]")
+            else:
+                st.error("❌ Nama tidak boleh kosong!")
+
+# ==================== READ - LIHAT SEMUA ====================
+elif menu == "📋 Lihat Antrian":
+    st.title("📋 Daftar Antrian")
+    st.markdown("---")
+    
+    antrian_urut = bank.lihat_semua()
+    
+    if antrian_urut:
+        # Buat dataframe
+        data_list = []
+        for _, _, d in antrian_urut:
+            data_list.append({
+                "No. Antrian": d['nomor'],
+                "Nama": d['nama'],
+                "Prioritas": bank.label_prioritas(d['prioritas'])
+            })
+        
+        st.dataframe(data_list, use_container_width=True)
+        
+        st.markdown("---")
+        st.write(f"📋 Total: **{len(antrian_urut)}** orang menunggu")
+    else:
+        st.info("📋 Antrian kosong!")
+
+# ==================== READ - CEK NOMOR ====================
+elif menu == "🔍 Cek Nomor":
+    st.title("🔍 Cek Nomor Antrian")
+    st.markdown("---")
+    
+    no = st.number_input("Masukkan Nomor Antrian", min_value=1, step=1)
+    
+    if st.button("🔍 Cek"):
+        data, status = bank.cek_nomor(no)
+        
+        if data:
+            st.success(f"📋 Data Nasabah No.{no}")
+            st.write(f"**Nama:** {data['nama']}")
+            st.write(f"**Prioritas:** {bank.label_prioritas(data['prioritas'])}")
+            st.write(f"**Status:** {status}")
+        else:
+            st.error(f"❌ Nomor {no} tidak ditemukan!")
+
+# ==================== UPDATE ====================
+elif menu == "✏️ Ubah Data":
+    st.title("✏️ Ubah Data Nasabah")
+    st.markdown("---")
+    
+    no = st.number_input("Nomor Antrian", min_value=1, step=1, key="update_no")
+    nama_baru = st.text_input("Nama Baru (kosongkan jika tidak diubah)", key="update_nama")
+    prioridades = st.selectbox(
+        "Prioritas Baru",
+        options=[None, (0, "SANGAT UTAMA"), (1, "UTAMA"), 
+                 (2, "TINGGI"), (3, "NORMAL")],
+        format_func=lambda x: x[1] if x else "Tidak Diubah",
+        key="update_prioritas"
+    )
+    
+    if st.button("✏️ Ubah Data"):
+        p = prioridades[0] if prioritas else None
+        nama = nama_baru if nama_baru else None
+        
+        if bank.update_data(no, nama, p):
+            st.success(f"✅ Berhasil ubah data No.{no}")
+        else:
+            st.error(f"❌ Gagal ubah: No.{no} tidak ditemukan!")
+
+# ==================== DELETE ====================
+elif menu == "❌ Batal":
+    st.title("❌ Batal Antrian")
+    st.markdown("---")
+    
+    no = st.number_input("Nomor Antrian", min_value=1, step=1, key="batal_no")
+    
+    if st.button("❌ Batal Antrian"):
+        if bank.Batal_antrian(no):
+            st.success(f"✅ Antrian No.{no} dibatalkan!")
+        else:
+            st.error(f"❌ Gagal: No.{no} tidak ditemukan!")
+
+# ==================== PANGGIL ====================
+elif menu == "📞 Panggil":
+    st.title("📞 Panggil Nasabah")
+    st.markdown("---")
+    
+    teller_opsi = st.selectbox(
+        "Pilih Teller",
+        options=[1, 2, 3],
+        format_func=lambda x: f"Teller {x}"
+    )
+    
+    if st.button("📞 Panggil Nasabah"):
+        data = bank.panggil(teller_opsi)
+        
+        if data:
+            st.success(f"Teller {teller_opsi}: Memanggil {data['nama']} (No.{data['nomor']}) [{bank.label_prioritas(data['prioritas'])}]")
+        else:
+            st.warning(f"Teller {teller_opsi}: Antrian kosong!")
+
+# ==================== SELESAI ====================
+elif menu == "✅ Selesai":
+    st.title("✅ Selesai Layanan")
+    st.markdown("---")
+    
+    teller_opsi = st.selectbox(
+        "Pilih Teller",
+        options=[1, 2, 3],
+        format_func=lambda x: f"Teller {x}"
+    )
+    
+    if st.button("✅ Selesai"):
+        data = bank.selesai(teller_opsi)
+        
+        if data:
+            st.success(f"Teller {teller_opsi}: ✅ Selesai melayani {data['nama']}")
+        else:
+            st.warning(f"Teller {teller_opsi}: Tidak ada yang dilayani!")
+
+# ==================== STATUS ====================
+elif menu == "📊 Status":
+    st.title("📊 Status Lengkap")
+    st.markdown("---")
+    
+    # Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📋 Menunggu", len(st.session_state.antrian))
+    with col2:
+        st.metric("👨‍💼 Teller Aktif", sum(1 for t in st.session_state.teller if t))
+    with col3:
+        st.metric("✅ Dilayani", st.session_state.total_dilayani)
+    with col4:
+        st.metric("📝 Total", st.session_state.nomor_antrian)
+    
+    st.markdown("---")
+    
+    # Antrian
+    st.subheader("📋 Antrian Menunggu")
+    antrian_urut = bank.lihat_semua()
+    
+    if antrian_urut:
+        for _, _, d in antrian_urut:
+            label = bank.label_prioritas(d['prioritas'])
+            st.write(f"• No.{d['nomor']:2d} - {d['nama']:20s} [{label}]")
+    else:
+        st.info("Antrian kosong!")
+    
+    st.markdown("---")
+    
+    # Teller
+    st.subheader("👨‍💼 Status Teller")
+    for i, t in enumerate(st.session_state.teller, 1):
+        if t:
+            label = bank.label_prioritas(t['prioritas'])
+            st.success(f"Teller {i}: {t['nama']} (No.{t['nomor']}) [{label}]")
+        else:
+            st.info(f"Teller {i}: 🟢 Idle")
