@@ -58,7 +58,7 @@ class AntrianBank:
         return sorted(st.session_state.antrian, key=lambda x: (x[0], x[1]))
     
     def update_data(self, nomor, nama_baru, prioritas_baru):
-        for i, (p, cp, d) in enumerate(st.session_state.antrian):
+        for p, cp, d in st.session_state.antrian:
             if d['nomor'] == nomor:
                 if nama_baru:
                     d['nama'] = nama_baru
@@ -68,7 +68,7 @@ class AntrianBank:
                     st.session_state.antrian.append((prioritas_baru, cp, d))
                 return True
         
-        for i, t in enumerate(st.session_state.teller, 1):
+        for t in st.session_state.teller:
             if t and t['nomor'] == nomor:
                 if nama_baru:
                     t['nama'] = nama_baru
@@ -78,7 +78,7 @@ class AntrianBank:
         return False
     
     def Batal_antrian(self, nomor):
-        for p, cp, d in enumerate(st.session_state.antrian):
+        for p, cp, d in st.session_state.antrian:
             if d['nomor'] == nomor:
                 st.session_state.antrian.remove((p, cp, d))
                 return True
@@ -258,13 +258,13 @@ elif menu == "❌ Batal":
     st.title("❌ Batal Antrian")
     st.markdown("---")
     
-    Batal_no = st.number_input("Nomor Antrian", min_value=1, step=1, key="batal_no")
+    batal_no = st.number_input("Nomor Antrian", min_value=1, step=1, key="batal_no")
     
     if st.button("❌ Batal Antrian"):
-        if bank.Batal_antrian(Batal_no):
-            st.success(f"✅ Antrian No.{Batal_no} dibatalkan!")
+        if bank.Batal_antrian(batal_no):
+            st.success(f"✅ Antrian No.{batal_no} dibatalkan!")
         else:
-            st.error(f"❌ Gagal: No.{Batal_no} tidak ditemukan!")
+            st.error(f"❌ Gagal: No.{batal_no} tidak ditemukan!")
 
 # ==================== PANGGIL ====================
 elif menu == "📞 Panggil":
