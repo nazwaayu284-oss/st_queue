@@ -14,6 +14,39 @@ st.set_page_config(
     layout="centered"
 )
 
+# ==================== CUSTOM BLUE THEME CSS ====================
+st.markdown("""
+    <style>
+        /* Warna Background Utama (Soft Ice Blue / Biru Sangat Muda) */
+        .stApp {
+            background-color: #F0F4F8;
+        }
+        
+        /* Warna Sidebar (Biru Navy Formal) */
+        [data-testid="stSidebar"] {
+            background-color: #1E293B;
+        }
+        
+        /* Mengubah warna teks di dalam sidebar menjadi putih agar kontras */
+        [data-testid="stSidebar"] .stMarkdown, 
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3, 
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] label {
+            color: #FFFFFF !important;
+        }
+        
+        /* Membuat kartu metric/box sedikit lebih kontras dengan background putih */
+        div[data-testid="stMetric"] {
+            background-color: #FFFFFF;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # ==================== CLASS ====================
 class AntrianBank:
     """Sistem Antrian Bank dengan Prioritas"""
@@ -114,7 +147,9 @@ bank = AntrianBank()
 
 # ==================== SIDEBAR ====================
 st.sidebar.title("🏦 Menu")
-menu = st.sidebar.radio(
+
+# MENGGUNAKAN SELECTBOX AGAR MENJADI MENU LIPAT / DROP-DOWN BERPANAH
+menu = st.sidebar.selectbox(
     "Pilih Menu:",
     ["🏠 Home", "📝 Ambil Nomor", "📋 Lihat Antrian", 
      "🔍 Cek Nomor", "✏️ Ubah Data", "❌ Batal", 
