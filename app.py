@@ -1,80 +1,125 @@
 """
 ===================================================
-     🏦 ANTRIAN BANK PRIORITAS - STREAMLIT 🏦
+     🏦 ANTRIAN BANK PRIORITAS - CSV VERSION 🏦
 ===================================================
 """
 
 import streamlit as st
+import csv
+import os
 from collections import deque
+from datetime import datetime
 
 # ==================== SETUP ====================
 st.set_page_config(
-    page_title="Antrian Bank Prioritas",
+    page_title="Antrian Bank Prioritas (CSV)",
     page_icon="🏦",
     layout="centered"
 )
 
-# ==================== CUSTOM BLUE THEME CSS ====================
-st.markdown("""
-    <style>
-        /* Warna Background Utama (Soft Ice Blue / Biru Sangat Muda) */
-        .stApp {
-            background-color: #F0F4F8;
-        }
+# ==================== FILE CSV ====================
+FILE_CSV = "antrian_bank.csv"
+
+# ==================== FUNGSI CSV ====================
+def load_data_csv():
+    """Baca data dari file CSV"""
+    antrian = deque()
+    riwayat = []
+    total = 0
+    
+    if os.path.exists(FILE_CSV):
+        try:
+            with open(FILE_CSV, mode='r', newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row['jenis'] == 'antrian':
+                        antrian.append((
+                            int(row['prioritas']),
+                            int(row['counter']),
+                            {
+                                'nomor': int(row['nomor']),
+                                'nama': row['nama'],
+                                'prioritas': int(row['prioritas']),
+                                'waktu': row['waktu']
+                            }
+                        ))
+                        total = max(total, int(row['nomor']))
+                    elif row['jenis'] == 'riwayat':
+                        riwayat.append({
+                            'nomor': int(row['nomor']),
+                            'nama': row['nama'],
+                            'prioritas': int(row['prioritas']),
+                            'waktu': row['waktu']
+                        })
+        except Exception as e:
+            st.error(f"Error membaca CSV: {e}")
+    
+    return antrian, riwayat, total
+
+def save_data_csv(antrian_list, riwayat, counter_prioritas):
+    """Simpan data ke file CSV"""
+    try:
+        with open(FILE_CSV, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            # Header
+            writer.writerow(['jenis', 'nomor', 'nama', 'prioritas', 'counter', 'waktu'])
+            
+            # Data Antrian
+            for p, cp, d in antrian_list:
+                writer.writerow(['antrian', d['nomor'], d['nama'], d['prioritas'], cp, d['waktu']])
+            
+            # Data Riwayat
+            for d in riwayat:
+                writer.writerow(['riwayat', d['nomor'], d['nama'], d['prioritas'], 0, d['waktu']])
+                
+    except Exception as e:
+        st.error(f"Error menyimpan CSV: {e}")
+
+def update_csv():
+    """Update file CSV dari session_state"""
+    save_data_csv(
+        st.session_state.antrian,
+        st.session_state.riwayat,
+        st.session_state.counter_prioritas
+    )
+
+# ==================== INISIALISASI DATA ====================
+def init_session():
+    """Inisialisasi session state dari CSV"""
+    if 'initialized' not in st.session_state:
+        antrian, riwayat, total = load_data_csv()
         
-        /* Warna Sidebar (Biru Navy Formal) */
-        [data-testid="stSidebar"] {
-            background-color: #1E293B;
-        }
-        
-        /* Mengubah warna teks di dalam sidebar menjadi putih agar kontras */
-        [data-testid="stSidebar"] .stMarkdown, 
-        [data-testid="stSidebar"] h1, 
-        [data-testid="stSidebar"] h2, 
-        [data-testid="stSidebar"] h3, 
-        [data-testid="stSidebar"] p,
-        [data-testid="stSidebar"] label {
-            color: #FFFFFF !important;
-        }
-        
-        /* Membuat kartu metric/box sedikit lebih kontras dengan background putih */
-        div[data-testid="stMetric"] {
-            background-color: #FFFFFF;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-    </style>
-""", unsafe_allow_html=True)
+        st.session_state.antrian = antrian
+        st.session_state.riwayat = riwayat
+        st.session_state.nomor_antrian = total
+        st.session_state.counter_prioritas = total
+        st.session_state.teller = [None, None, None]
+        st.session_state.total_dilayani = len(riwayat)
+        st.session_state.initialized = True
 
 # ==================== CLASS ====================
 class AntrianBank:
-    """Sistem Antrian Bank dengan Prioritas"""
+    """Sistem Antrian Bank dengan Prioritas + CSV"""
     
     def __init__(self):
-        if 'antrian' not in st.session_state:
-            st.session_state.antrian = deque()
-        if 'nomor_antrian' not in st.session_state:
-            st.session_state.nomor_antrian = 0
-        if 'teller' not in st.session_state:
-            st.session_state.teller = [None, None, None]
-        if 'counter_prioritas' not in st.session_state:
-            st.session_state.counter_prioritas = 0
-        if 'total_dilayani' not in st.session_state:
-            st.session_state.total_dilayani = 0
-        if 'riwayat' not in st.session_state:
-            st.session_state.riwayat = []
+        # Pastikan data ter-load
+        init_session()
     
     def ambil_nomor(self, nama, prioritas):
         st.session_state.nomor_antrian += 1
         st.session_state.counter_prioritas += 1
         
         data = {
-            'nomor': st.session_state.nomor_antrian, 
-            'nama': nama, 
-            'prioritas': prioritas
+            'nomor': st.session_state.nomor_antrian,
+            'nama': nama,
+            'prioritas': prioritas,
+            'waktu': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         st.session_state.antrian.append((prioritas, st.session_state.counter_prioritas, data))
+        
+        # SAVE KE CSV
+        update_csv()
+        
         return st.session_state.nomor_antrian
     
     def cek_nomor(self, nomor):
@@ -95,18 +140,16 @@ class AntrianBank:
             if d['nomor'] == nomor:
                 if nama_baru:
                     d['nama'] = nama_baru
-                if prioritas_baru is not None:
-                    st.session_state.antrian.remove((p, cp, d))
-                    d['prioritas'] = prioritas_baru
-                    st.session_state.antrian.append((prioritas_baru, cp, d))
+                # UPDATE CSV
+                update_csv()
                 return True
         
         for t in st.session_state.teller:
             if t and t['nomor'] == nomor:
                 if nama_baru:
                     t['nama'] = nama_baru
-                if prioritas_baru is not None:
-                    t['prioritas'] = prioritas_baru
+                # UPDATE CSV
+                update_csv()
                 return True
         return False
     
@@ -114,6 +157,8 @@ class AntrianBank:
         for p, cp, d in st.session_state.antrian:
             if d['nomor'] == nomor:
                 st.session_state.antrian.remove((p, cp, d))
+                # UPDATE CSV
+                update_csv()
                 return True
         return False
     
@@ -126,7 +171,10 @@ class AntrianBank:
         _, _, data = antrian_urut.popleft()
         st.session_state.antrian = antrian_urut
         st.session_state.teller[teller_id - 1] = data
-        st.session_state.total_dilayani += 1
+        
+        # UPDATE CSV
+        update_csv()
+        
         return data
     
     def selesai(self, teller_id):
@@ -134,6 +182,11 @@ class AntrianBank:
             data = st.session_state.teller[teller_id - 1]
             st.session_state.teller[teller_id - 1] = None
             st.session_state.riwayat.append(data)
+            st.session_state.total_dilayani += 1
+            
+            # UPDATE CSV
+            update_csv()
+            
             return data
         return None
     
@@ -141,14 +194,25 @@ class AntrianBank:
         labels = {0: "SANGAT UTAMA", 1: "UTAMA", 2: "TINGGI", 3: "NORMAL"}
         return labels.get(p, f"P-{p}")
 
+# ==================== CUSTOM CSS ====================
+st.markdown("""
+    <style>
+        .stApp { background-color: #F0F4F8; }
+        [data-testid="stSidebar"] { background-color: #1E293B; }
+        [data-testid="stSidebar"] .stMarkdown, 
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3, 
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] label { color: #FFFFFF !important; }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==================== INIT ====================
 bank = AntrianBank()
 
 # ==================== SIDEBAR ====================
 st.sidebar.title("🏦 Menu")
-
-# MENGGUNAKAN SELECTBOX AGAR MENJADI MENU LIPAT / DROP-DOWN BERPANAH
 menu = st.sidebar.selectbox(
     "Pilih Menu:",
     ["🏠 Home", "📝 Ambil Nomor", "📋 Lihat Antrian", 
@@ -179,7 +243,6 @@ if menu == "🏠 Home":
         st.metric("✅ Total Dilayani", st.session_state.total_dilayani)
     
     st.markdown("---")
-    
     st.subheader("👨‍💼 Status Teller")
     for i, t in enumerate(st.session_state.teller, 1):
         if t:
@@ -189,7 +252,7 @@ if menu == "🏠 Home":
             st.info(f"Teller {i}: 🟢 Idle")
     
     st.markdown("---")
-    st.caption("🏦 Aplikasi Antrian Bank Prioritas dengan Streamlit")
+    st.caption("💾 Data disimpan ke: antrian_bank.csv")
 
 # ==================== CREATE ====================
 elif menu == "📝 Ambil Nomor":
@@ -218,7 +281,7 @@ elif menu == "📝 Ambil Nomor":
             else:
                 st.error("❌ Nama tidak boleh kosong!")
 
-# ==================== READ - LIHAT SEMUA ====================
+# ==================== READ ====================
 elif menu == "📋 Lihat Antrian":
     st.title("📋 Daftar Antrian")
     st.markdown("---")
@@ -231,7 +294,8 @@ elif menu == "📋 Lihat Antrian":
             data_list.append({
                 "No. Antrian": d['nomor'],
                 "Nama": d['nama'],
-                "Prioritas": bank.label_prioritas(d['prioritas'])
+                "Prioritas": bank.label_prioritas(d['prioritas']),
+                "Waktu": d.get('waktu', '-')
             })
         
         st.dataframe(data_list, use_container_width=True)
@@ -241,7 +305,7 @@ elif menu == "📋 Lihat Antrian":
     else:
         st.info("📋 Antrian kosong!")
 
-# ==================== READ - CEK NOMOR ====================
+# ==================== CEK NOMOR ====================
 elif menu == "🔍 Cek Nomor":
     st.title("🔍 Cek Nomor Antrian")
     st.markdown("---")
@@ -265,28 +329,13 @@ elif menu == "✏️ Ubah Data":
     st.markdown("---")
     
     update_no = st.number_input("Nomor Antrian", min_value=1, step=1, key="update_no")
-    update_nama = st.text_input("Nama Baru (kosongkan jika tidak diubah)", key="update_nama")
-    update_prioritas = st.selectbox(
-        "Prioritas Baru",
-        options=[
-            (None, "Tidak Diubah"),
-            (0, "SANGAT UTAMA"),
-            (1, "UTAMA"),
-            (2, "TINGGI"),
-            (3, "NORMAL")
-        ],
-        format_func=lambda x: x[1] if x[0] is not None else "Tidak Diubah",
-        key="update_prioritas_select"
-    )
+    update_nama = st.text_input("Nama Baru", key="update_nama")
     
     if st.button("✏️ Ubah Data"):
-        p = update_prioritas[0]
-        nama = update_nama if update_nama else None
-        
-        if bank.update_data(update_no, nama, p):
+        if bank.update_data(update_no, update_nama if update_nama else None, None):
             st.success(f"✅ Berhasil ubah data No.{update_no}")
         else:
-            st.error(f"❌ Gagal ubah: No.{update_no} tidak ditemukan!")
+            st.error(f"❌ Gagal: No.{update_no} tidak ditemukan!")
 
 # ==================== DELETE ====================
 elif menu == "❌ Batal":
@@ -306,11 +355,7 @@ elif menu == "📞 Panggil":
     st.title("📞 Panggil Nasabah")
     st.markdown("---")
     
-    pilih_teller = st.selectbox(
-        "Pilih Teller",
-        options=[1, 2, 3],
-        format_func=lambda x: f"Teller {x}"
-    )
+    pilih_teller = st.selectbox("Pilih Teller", options=[1, 2, 3], format_func=lambda x: f"Teller {x}")
     
     if st.button("📞 Panggil Nasabah"):
         data = bank.panggil(pilih_teller)
@@ -325,11 +370,7 @@ elif menu == "✅ Selesai":
     st.title("✅ Selesai Layanan")
     st.markdown("---")
     
-    selesaikan_teller = st.selectbox(
-        "Pilih Teller",
-        options=[1, 2, 3],
-        format_func=lambda x: f"Teller {x}"
-    )
+    selesaikan_teller = st.selectbox("Pilih Teller", options=[1, 2, 3], format_func=lambda x: f"Teller {x}")
     
     if st.button("✅ Selesai"):
         data = bank.selesai(selesaikan_teller)
@@ -355,7 +396,6 @@ elif menu == "📊 Status":
         st.metric("📝 Total", st.session_state.nomor_antrian)
     
     st.markdown("---")
-    
     st.subheader("📋 Antrian Menunggu")
     antrian_urut = bank.lihat_semua()
     
@@ -367,7 +407,6 @@ elif menu == "📊 Status":
         st.info("Antrian kosong!")
     
     st.markdown("---")
-    
     st.subheader("👨‍💼 Status Teller")
     for i, t in enumerate(st.session_state.teller, 1):
         if t:
