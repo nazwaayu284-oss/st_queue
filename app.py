@@ -365,4 +365,4 @@ elif menu == "📊 Status":
             label = bank.label_prioritas(t['prioritas'])
             st.success(f"Teller {i}: {t['nama']} (No.{t['nomor']}) [{label}]")
         else:
-            st.info(f"Teller {i}: 🟢 Aktif")  # ← GANTI IDLE → AKTIF
+            st.info(f"Teller {i}: 🟢 Aktif")  
