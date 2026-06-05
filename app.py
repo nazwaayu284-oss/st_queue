@@ -17,17 +17,12 @@ st.set_page_config(
 # ==================== CUSTOM BLUE THEME CSS ====================
 st.markdown("""
     <style>
-        /* Warna Background Utama (Soft Ice Blue / Biru Sangat Muda) */
         .stApp {
             background-color: #F0F4F8;
         }
-        
-        /* Warna Sidebar (Biru Navy Formal) */
         [data-testid="stSidebar"] {
             background-color: #1E293B;
         }
-        
-        /* Mengubah warna teks di dalam sidebar menjadi putih agar kontras */
         [data-testid="stSidebar"] .stMarkdown, 
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 
@@ -36,8 +31,6 @@ st.markdown("""
         [data-testid="stSidebar"] label {
             color: #FFFFFF !important;
         }
-        
-        /* Membuat kartu metric/box sedikit lebih kontras dengan background putih */
         div[data-testid="stMetric"] {
             background-color: #FFFFFF;
             padding: 15px;
@@ -141,14 +134,12 @@ class AntrianBank:
         labels = {0: "SANGAT UTAMA", 1: "UTAMA", 2: "TINGGI", 3: "NORMAL"}
         return labels.get(p, f"P-{p}")
 
-
 # ==================== INIT ====================
 bank = AntrianBank()
 
 # ==================== SIDEBAR ====================
 st.sidebar.title("🏦 Menu")
 
-# MENGGUNAKAN SELECTBOX AGAR MENJADI MENU LIPAT / DROP-DOWN BERPANAH
 menu = st.sidebar.selectbox(
     "Pilih Menu:",
     ["🏠 Home", "📝 Ambil Nomor", "📋 Lihat Antrian", 
@@ -186,7 +177,7 @@ if menu == "🏠 Home":
             label = bank.label_prioritas(t['prioritas'])
             st.success(f"Teller {i}: {t['nama']} (No.{t['nomor']}) [{label}]")
         else:
-            st.info(f"Teller {i}: 🟢 Idle")
+            st.info(f"Teller {i}: 🟢 Aktif")  # ← GANTI IDLE → AKTIF
     
     st.markdown("---")
     st.caption("🏦 Aplikasi Antrian Bank Prioritas dengan Streamlit")
@@ -374,4 +365,4 @@ elif menu == "📊 Status":
             label = bank.label_prioritas(t['prioritas'])
             st.success(f"Teller {i}: {t['nama']} (No.{t['nomor']}) [{label}]")
         else:
-            st.info(f"Teller {i}: 🟢 Idle")
+            st.info(f"Teller {i}: 🟢 Aktif")  # ← GANTI IDLE → AKTIF
